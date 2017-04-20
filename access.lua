@@ -13,20 +13,19 @@ local function get_signature(salt, constant)
 	return signature
 end
 
-if headers['x-timestamp'] ~= nil then
-	signature = get_signature(headers['x-timestamp'], constant)
+if headers['X-Timestamp'] ~= nil then
+	signature = get_signature(headers['X-Timestamp'], constant)
 end
 
-if headers['x-signature'] ~= nil then
-	ngx.say('signature:'..signature)
-	ngx.say('x-signature:'..headers['x-signature'])
+if headers['X-Signature'] ~= nil then
+--	ngx.say('signature:'..signature)
+--	ngx.say('x-signature:'..headers['x-signature'])
 	local api = access:new(signature)
-	local ret = api:check(headers['x-signature'], headers['x-timestamp'])
+	local ret = api:check(headers['X-Signature'], headers['X-Timestamp'])
 	if not ret then
-		ngx.say('deny access!')
+		--ngx.say('deny access!')
 		ngx.exit(ngx.HTTP_FORBIDDEN)
 	end
-	ngx.say('welcome')
 end
 
 
