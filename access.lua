@@ -1,12 +1,11 @@
 local config = require 'config'
-local access = require 'api.access'
-local hmac = require 'resty.hmac'
+local access = require 'security.checker'
+local hmac = hmac or require 'security.hmac'
 local constant = config.constant
 local headers = ngx.req.get_headers()
 local ngx_var = ngx.var
 local expired
 local signature
-
 
 local function get_signature(salt, constant)
 	local hash_hmac = hmac:new(constant.PRIVATE_SECRET, constant.ALGOS)

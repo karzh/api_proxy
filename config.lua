@@ -1,4 +1,4 @@
-local hmac = require 'resty.hmac'
+local hmac = require 'security.hmac'
 
 local config = {
 	mysql = {},

@@ -1,3 +1,4 @@
+-- 签名验证
 local EXPIRED = 60 * 5
 
 local _M = {}
