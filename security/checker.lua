@@ -1,5 +1,5 @@
 -- 签名验证
-local EXPIRED = 60 * 30
+local EXPIRED = 60 * 60 * 24 * 3
 
 local _M = {}
 local mt = { __index = _M }

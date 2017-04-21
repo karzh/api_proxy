@@ -18,8 +18,8 @@ if headers['X-Timestamp'] ~= nil then
 end
 
 if headers['X-Signature'] ~= nil then
---	ngx.say('signature:'..signature)
---	ngx.say('x-signature:'..headers['x-signature'])
+	ngx.log(ngx.ERR, 'signature:'..signature)
+	ngx.log(ngx.ERR, 'x-signature:'..headers['x-signature'])
 	local api = access:new(signature)
 	local ret = api:check(headers['X-Signature'], headers['X-Timestamp'])
 	if not ret then

@@ -51,6 +51,8 @@ for idx, rule  in ipairs(cproxy["rules"]) do
 		local url = table.concat(url_prefix)
 		local cache_key = ngx.md5(url)
 		ngx.var.cache_key = cache_key
+		ngx.var.fetch_skip = 0
+		ngx.var.store_skip = 0
 		return 
 	end
 end
