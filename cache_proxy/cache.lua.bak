@@ -36,73 +36,63 @@ end
 local req_method = ngx.req.get_method()
 
 if req_method == "GET" then
+	ngx.var.store_status = "BYPASS"
+	ngx.var.fetch_status = "HIT"
 	local res, err = redisInstance:get(cache_key)
+
 	if res == ngx.null then
-		-- cache miss
-		local lock, err = resty_lock:new("my_locks", {timeout = 10})
-		if not lock then
-			ngx.log(ngx.ERR, "failed to create lock:"..err)
-			return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-		end
-		local elapsed, err = lock:lock(cache_key)
-		if not elapsed then
-			ngx.log(ngx.ERR, "failed to acquire the lock:"..err)
-			return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-		end
-		-- lock successfully acquired!
-		-- someone might have already put the value into the cache
-		-- so we check it again!
-		res, err = redisInstance:get(cache_key)
-		if res == ngx.null then
-			
-		else
-			local ok, err = lock:unlock()
-			if not ok then
-				ngx.log(ngx.ERR, "failed to unlock:"..err)
-				return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-			end
-			ngx.say(res)
-			return
-		end
-
-		-- fetch data into redis
-		local ret = ngx.location.capture("/subrequest_fastcgi", { method = ngx.HTTP_GET, args = ngx.req.get_uri_args()})
-		if not ret then
-			local ok, err = lock:unlock()
-			if not ok then
-				ngx.log(ngx.ERR, "failed to unlock:"..err)
-				return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-			end
-			return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-		end
-
-		-- update cache with the newly fetched value
-		local ok, err = redisInstance:set(cache_key, ret.body)
-		if not ok then
-			local ok, err = lock:unlock()
-			if not ok then
-				ngx.log(ngx.ERR, "failed to unlock:"..err)
-				return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-			end
-			ngx.log(ngx.ERR, "failed to update cache")
-			return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-		end
-
-		local ok, err = lock:unlock()
-		if not ok then
-			ngx.log(ngx.ERR, "failed to unlock:"..err)
-			return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-		end
-
 		ngx.var.fetch_status = "MISS"
 		ngx.var.store_status = "STORE"
-		ngx.say(ret.body)
-	else
-		--ngx.log(ngx.ERR, "exist.....")
-		ngx.var.fetch_status = "HIT"
-		ngx.var.store_status = "BYPASS"
-		ngx.say(res)
-		return
+		ngx.log(ngx.ERR, "cache not found!")
+		-- create lock
+		local lock, err = resty_lock:new("my_locks")
+		if not lock then
+			ngx.log(ngx.ERR, "failed to create lock: "..err)
+			return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+		end
+
+		local elapsed, err = lock:lock(cache_key)
+		if not elapsed then
+			ngx.log(ngx.ERR, "failed to acquire the lock: "..err)
+			return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+		end
+
+		local uri_args = ngx.req.get_uri_args()
+		local req_uri_without_args = ngx.re.sub(ngx.var.request_uri, "\\?.*", "")
+
+	--	local ret, err = ngx.location.capture("/subrequest_fastcgi" .. req_uri_without_args, { method = ngx.HTTP_GET, args = ngx.req.get_uri_args() })
+		local ret, err = ngx.location.capture("/subrequest_fastcgi", { method = ngx.HTTP_GET, args = ngx.req.get_uri_args() })
+
+		if err then
+			local ok, err = lock:unlock()
+			if not ok then
+				ngx.log(ngx.ERR, "failed to unlock:" .. err)
+				return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+			end
+		end
+
+		local ok, err = redisInstance:set(cache_key, ret.body, "EX", 60 * 10)
+		if not ok then
+			local ok, err = lock:unlock()
+			if not ok then
+				ngx.log(ngx.ERR, "failed to unlock:" .. err)
+				return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+			end
+			ngx.log(ngx.WARN, "failed to update cache:" .. err)
+			return
+		end
+		
+		local ok, err = lock:unlock()
+		if not ok then
+			ngx.log(ngx.ERR, "failed to unlock:" .. err)
+			return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+		end 
+
+		res = ret.body	
+		--ngx.say(ret.body)
 	end
 
+	ngx.print(res)
+	--return
 end
+local ok, err = redisInstance:set_keepalive(10000, 100)
