@@ -9,6 +9,7 @@ nginx +lua实现的一个组件，主要功能包括api token验证， 透明的
 * lua > 5.2
 
 ### nginx配置
+srcache 实现
 	```bash
 	server {
 		listen 80;
@@ -49,5 +50,6 @@ nginx +lua实现的一个组件，主要功能包括api token验证， 透明的
 
 	}
 
-
+### 缓存失效风暴
+为了防止缓存失效引起的雪崩现象，增加一个加锁版本的cache，具体cache.lua。
 
